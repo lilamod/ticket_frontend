@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import { fetchProjects, createProject } from '../../store/projectsSlice';
 import type { RootState, AppDispatch } from '../../store';
-import type { Project } from '../../types';
 import SuperUserToggle from '../../components/SuperUserToggle';
 import Notifications from '../../components/Notifications';
 import ProjectList from '../../components/ProjectList';
