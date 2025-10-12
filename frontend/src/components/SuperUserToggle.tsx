@@ -1,11 +1,12 @@
-'use client'; 
+'use client';
 
-import React, { FC, useState, useCallback, useEffect, memo } from 'react';
-import { createPortal } from 'react-dom'; 
+import React, { FC, useState, useCallback, useEffect, memo, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleSuperUser   } from '../store/uiSlice';
-import type { RootState, AppDispatch } from '../store'; 
-import api from '../lib/api';  
+import { toggleSuperUser } from '../store/uiSlice';
+import type { RootState, AppDispatch } from '../store';
+import api from '../lib/api';
+
 const PasswordModal: FC<{
   password: string;
   error: string | null;
@@ -20,11 +21,11 @@ const PasswordModal: FC<{
       role="dialog"
       aria-labelledby="password-modal-title"
       aria-modal="true"
-      onClick={onCancel} // Close on overlay click
+      onClick={onCancel}
     >
       <div
         className="bg-white p-6 rounded-md max-w-sm w-full mx-4"
-        onClick={(e) => e.stopPropagation()} // Prevent closing on modal click
+        onClick={(e) => e.stopPropagation()}
       >
         <h3 id="password-modal-title" className="text-lg font-bold mb-4">
           Enter Super User Password
@@ -34,10 +35,10 @@ const PasswordModal: FC<{
           id="password-input"
           placeholder="Password"
           value={password}
-          onChange={(e) => onChange(e.target.value)} 
-          autoComplete="off" 
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete="off"
           aria-invalid={!!error}
-          aria-describedby={error ? 'password-error' : undefined}
+          aria-describedby={error ? 'password-error' : undefined}  // Fixed: Added 'undefined' for empty case
           className="w-full p-3 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {error && (
@@ -69,57 +70,54 @@ const PasswordModal: FC<{
   );
 });
 
-PasswordModal.displayName = 'PasswordModal'; 
+PasswordModal.displayName = 'PasswordModal';
 
 const SuperUserToggle: FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { isSuperUser   } = useSelector((state: RootState) => state.ui);
+  const { isSuperUser } = useSelector((state: RootState) => state.ui);
+
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const token = localStorage.getItem('token');
+  // Memoize token to avoid re-fetching localStorage on every render
+  const token = useMemo(
+    () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null),
+    []
+  );
+
+  const disableSuperUser = async (): Promise<void> => {
+    try {
+      await api.post('/auth/disable');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Disable super user error:', err);
+        alert(err.message || 'Disable super user error');
+      } else {
+        console.error('Disable super user error');
+        alert('An unknown error occurred. Please try again.');
+      }
+    }
+  };
+
+  const handleDisableSuperUser = useCallback(async () => {
+    setLoading(true);
+    await disableSuperUser();
+    dispatch(toggleSuperUser(false));
+    setLoading(false);
+  }, [dispatch]);
+
   const handleToggle = useCallback(() => {
-    if (isSuperUser  ) {
-      handleDisableSuperUser ();
+    if (isSuperUser) {
+      handleDisableSuperUser();
     } else {
       setShowPasswordModal(true);
       setError(null);
     }
-  }, [isSuperUser ]);
+  }, [isSuperUser, handleDisableSuperUser]);
 
- 
-  const enableSuperUser  = async (pwd: string): Promise<boolean> => {
-    try {
-      const response = await api.post('auth/enable', { password: pwd },  {
-        headers: {
-          token: token, 
-        },}
-      );
-      return response.data.success;  
-    } catch (err: any) {
-    console.log(err);
-    return err;
-    }
-  };
-
-  const disableSuperUser  = async (): Promise<void> => {
-    try {
-      await api.post('/api/superuser/disable');
-    } catch (err: any) {
-      console.error('Disable super user error:', err);
-    }
-  };
-
-  const handleDisableSuperUser  = async () => {
-    setLoading(true);
-    await disableSuperUser ();
-    dispatch(toggleSuperUser (false));
-    setLoading(false);
-  };
-
-  const handleConfirmPassword = async () => {
+  const handleConfirmPassword = useCallback(async () => {
     if (!password) {
       setError('Please enter a password.');
       return;
@@ -129,29 +127,44 @@ const SuperUserToggle: FC = () => {
     setLoading(true);
 
     try {
-      const isValid = await enableSuperUser (password);
+      const response = await api.post(
+        'auth/enable',
+        { password },
+        {
+          headers: {
+            token,
+          },
+        }
+      );
+
+      const isValid = response.data.success;
       if (!isValid) {
         setError('Incorrect password');
         setLoading(false);
         return;
       }
 
-      dispatch(toggleSuperUser (true)); 
+      dispatch(toggleSuperUser(true));
       setShowPasswordModal(false);
       setPassword('');
-    } catch (err: any) {
-      setError(err.message || 'Verification failed. Please try again.');
-      console.error('Password verification error:', err);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'Verification failed. Please try again.');
+        console.error('Password verification error:', err);
+      } else {
+        console.error('Verification failed. Please try again.');
+        alert('An unknown error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [password, dispatch, token]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setShowPasswordModal(false);
     setPassword('');
     setError(null);
-  };
+  }, []);
 
   const handlePasswordChange = useCallback((value: string) => {
     setPassword(value);
@@ -159,11 +172,7 @@ const SuperUserToggle: FC = () => {
 
   const handleModalConfirm = useCallback(() => {
     handleConfirmPassword();
-  }, [password]); 
-
-  const handleModalCancel = useCallback(() => {
-    handleCancel();
-  }, []);
+  }, [handleConfirmPassword]);
 
   useEffect(() => {
     return () => setPassword('');
@@ -176,13 +185,13 @@ const SuperUserToggle: FC = () => {
         <button
           onClick={handleToggle}
           aria-label="Toggle Super User Mode"
-          aria-checked={isSuperUser }
+          aria-checked={isSuperUser}
           role="switch"
-          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-300"
         >
           <span
             className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
-              isSuperUser  ? 'translate-x-6' : 'translate-x-1'
+              isSuperUser ? 'translate-x-6' : 'translate-x-1'
             }`}
           />
         </button>
@@ -195,11 +204,11 @@ const SuperUserToggle: FC = () => {
           loading={loading}
           onChange={handlePasswordChange}
           onConfirm={handleModalConfirm}
-          onCancel={handleModalCancel}
+          onCancel={handleCancel}
         />
       )}
 
-      {isSuperUser  && (
+      {isSuperUser && (
         <p className="text-xs text-green-600">Enabled: Shows user info on tickets</p>
       )}
     </div>

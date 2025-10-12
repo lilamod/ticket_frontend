@@ -4,7 +4,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios';
 
-const API_BASE_URL = 'http://localhost:4000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';  
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +18,7 @@ api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers['token'] = token ;  // Bearer token for auth
     }
     return config;
   },
@@ -32,8 +32,8 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      if (typeof window !== 'undefined') {  // Fixed: Proper check for browser
+        window.location.href = '/';  // Fixed: Redirect to root (login page), not '/login'
       }
     }
     return Promise.reject(error);

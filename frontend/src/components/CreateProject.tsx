@@ -13,10 +13,16 @@ const CreateProject: FC<CreateProjectProps> = ({ onCreate }) => {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      await onCreate(name.trim());
+      onCreate(name.trim());
       setName('');
-    } catch (error) {
-      alert('Failed to create project');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Failed to create project:', error);
+        alert(error.message || 'Failed to create project');
+      } else {
+        console.error('Failed to create project: Unknown error');
+        alert('An unknown error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

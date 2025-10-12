@@ -13,10 +13,16 @@ const CreateTicket: FC<CreateTicketProps> = ({ onCreate }) => {
     if (!description.trim()) return;
     setLoading(true);
     try {
-      await onCreate(description.trim());
+      onCreate(description.trim());
       setDescription('');
     } catch (error) {
-      alert('Failed to create ticket');
+      if (error instanceof Error) {
+        console.error('Failed to create ticket:', error);
+        alert(error.message || 'Failed to create ticket');
+      } else {
+        console.error('Failed to create ticket: Unknown error');
+        alert('An unknown error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -8,18 +8,6 @@ import type { RootState, AppDispatch } from '../store';
 import Login from '../components/Login'; 
 import OTPVerification from '../components/OTPVerification'; 
 
-interface EmailProps {
-  email: string;
-  setEmail: (email: string) => void;
-  onSendOTP: () => void;
-}
-
-interface OTPProps {
-  email: string;
-  onSuccess: () => void;
-  onBack?: () => void; 
-}
-
 export default function Home() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();

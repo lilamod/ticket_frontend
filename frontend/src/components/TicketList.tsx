@@ -32,7 +32,7 @@ const TicketList: React.FC<TicketListProps> = ({ tickets, showUserInfo = false }
         updates: { status: newStatus } 
       })).unwrap();
       console.log('Ticket status updated to:', newStatus);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof Error) {
         console.error('Update failed:', err);
         alert(err.message || 'Failed to update ticket');

@@ -34,8 +34,12 @@ export default function Dashboard() {
     try {
       await dispatch(createProject(name)).unwrap();  
       dispatch(fetchProjects());
-    } catch (err: any) {
-      alert(err.message || 'Failed to create project');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert(err.message || 'Failed to create project');
+      } else {
+        alert('Failed to create project');
+      }
     }
   };
 

@@ -6,7 +6,6 @@ import { logout } from '../store/authSlice';
 import { markAsRead } from '../store/notificationsSlice';
 import type { RootState, AppDispatch } from '../store';
 import type { Notification } from '../types';
-import { initSocket } from '../lib/socket';
 
 const Notifications = () => {
   const dispatch = useDispatch<AppDispatch>();

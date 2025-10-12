@@ -12,7 +12,8 @@ import SuperUserToggle from '../../../components/SuperUserToggle';
 import Notifications from '../../../components/Notifications';
 import CreateTicket from '../../../components/CreateTicket';
 import TicketList from '../../../components/TicketList';
-import { initSocket, socket } from '../../../lib/socket';  
+import { initSocket } from '../../../lib/socket';  
+import type { Socket } from 'socket.io-client';
 
 export default function ProjectDetail() {
   const dispatch = useDispatch<AppDispatch>();
@@ -24,7 +25,7 @@ export default function ProjectDetail() {
   const { isSuperUser } = useSelector((state: RootState) => state.ui); 
   const { isAuthenticated, loading: authLoading, error: authError, user } = useSelector((state: RootState) => state.auth);  // Auth state from your slice
   const [project, setProject] = useState<Project | null>(null);
-  const socketRef = useRef<any>(null);  
+  const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
     
@@ -103,10 +104,14 @@ export default function ProjectDetail() {
       console.log('Ticket created successfully:', result);
       dispatch(fetchTicketsByProject(projectId));
       alert('Ticket created successfully!');
-    } catch (err: any) {
-      console.error('Create ticket error:', err);
-      const errorMsg = err?.message || ticketsError || 'Failed to create ticket';
-      alert(errorMsg);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Create ticket error:', err);
+        const errorMsg = err?.message || ticketsError || 'Failed to create ticket';
+        alert(errorMsg);
+      } else {
+        alert('Create ticket error');
+      }
     }
   };
 

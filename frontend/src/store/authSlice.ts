@@ -1,94 +1,75 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import type { AuthState, User } from '../types';
+import type { AxiosError } from 'axios';
+import type { AuthState, User, ApiResponse } from '../types';
+import api from '../lib/api';
 
+interface ApiErrorResponse {
+  message: string;
+}
+
+// 1. Send OTP
 export const sendOTP = createAsyncThunk<
   { message: string },
   string,
   { rejectValue: string }
->(
-  'auth/sendOTP',
-  async (email: string, { rejectWithValue }) => {
-    try {
-      const response = await fetch('http://localhost:4000/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to send OTP');
-      }
-      const data = await response.json();
-      return data;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Network error';
-      return rejectWithValue(message);
-    }
+>('auth/sendOTP', async (email, { rejectWithValue }) => {
+  try {
+    const response = await api.post<ApiResponse<{ message: string }>>('/auth/send-otp', { email });
+    return response.data.data;
+  } catch (error: unknown) {
+    console.error('Send OTP error:', error);
+    const axiosError = error as AxiosError<ApiErrorResponse>;
+    const message = axiosError.response?.data?.message || (error as Error).message || 'Failed to send OTP';
+    return rejectWithValue(message);
   }
-);
+});
 
+// 2. Verify OTP
 export const verifyOTP = createAsyncThunk<
   { token: string; user: User },
   { email: string; otp: string },
   { rejectValue: string }
->(
-  'auth/verifyOTP',
-  async ({ email, otp }, { rejectWithValue }) => {
-    try {
-      const response = await fetch('http://localhost:4000/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Invalid OTP');
-      }
-      const data = await response.json();
-      const token = data.token;
-      localStorage.setItem('token', token);
-      const userResponse = await fetch('http://localhost:4000/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const userData = await userResponse.json();
-      return { token, user: userData.user || { email } };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Verification failed';
-      return rejectWithValue(message);
-    }
-  }
-);
+>('auth/verifyOTP', async ({ email, otp }, { rejectWithValue }) => {
+  try {
+    const verifyResponse = await api.post<ApiResponse<{ token: string }>>('/auth/verify-otp', { email, otp });
+    const token = verifyResponse.data.data.token;
+    localStorage.setItem('token', token);
 
+    const userResponse = await api.get<ApiResponse<{ user: User }>>('/auth/me');
+    const user = userResponse.data.data.user;
+
+    return { token, user };
+  } catch (error: unknown) {
+    console.error('Verify OTP error:', error);
+    const axiosError = error as AxiosError<ApiErrorResponse>;
+    const message = axiosError.response?.data?.message || (error as Error).message || 'Invalid OTP';
+    return rejectWithValue(message);
+  }
+});
+
+// 3. Load Auth
 export const loadAuth = createAsyncThunk<
   { token: string; user: User } | null,
   void,
   { rejectValue: string }
->(
-  'auth/loadAuth',
-  async (_, { rejectWithValue }) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return null;
-      const response = await fetch('http://localhost:4000/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        localStorage.removeItem('token');
-        return null;
-      }
-      const data = await response.json();
-      return { token, user: data.user };
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Auth loading failed:', error.message);
-        return rejectWithValue(error.message || 'Failed to load auth');
-      } else {
-        console.error('Auth loading failed: Unknown error');
-        return rejectWithValue('Failed to load auth');
-      }
-    }
+>('auth/loadAuth', async (_, { rejectWithValue }) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+
+    const response = await api.get<ApiResponse<{ user: User }>>('/auth/me');
+    const user = response.data.data.user;
+
+    return { token, user };
+  } catch (error: unknown) {
+    console.error('Auth loading failed:', error);
+    localStorage.removeItem('token');
+
+    const axiosError = error as AxiosError<ApiErrorResponse>;
+    const message = axiosError.response?.data?.message || (error as Error).message || 'Failed to load auth';
+    return rejectWithValue(message);
   }
-);
+});
 
 const initialState: AuthState = {
   user: null,
@@ -119,6 +100,7 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Send OTP
       .addCase(sendOTP.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -130,6 +112,8 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload ?? 'Failed to send OTP';
       })
+
+      // Verify OTP
       .addCase(verifyOTP.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -145,6 +129,8 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload ?? 'Verification failed';
       })
+
+      // Load Auth
       .addCase(loadAuth.fulfilled, (state, action) => {
         if (action.payload) {
           state.isAuthenticated = true;
