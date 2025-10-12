@@ -12,7 +12,7 @@ interface TicketListProps {
   showUserInfo?: boolean; 
 }
 
-const TicketList: React.FC<TicketListProps> = ({ tickets, projectId, showUserInfo = false }) => {
+const TicketList: React.FC<TicketListProps> = ({ tickets, showUserInfo = false }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const handleUpdateStatus = async (ticket: Ticket, newStatus: TicketStatus) => {
@@ -33,8 +33,13 @@ const TicketList: React.FC<TicketListProps> = ({ tickets, projectId, showUserInf
       })).unwrap();
       console.log('Ticket status updated to:', newStatus);
     } catch (err: any) {
-      console.error('Update failed:', err);
-      alert(err.message || 'Failed to update ticket');
+      if (err instanceof Error) {
+        console.error('Update failed:', err);
+        alert(err.message || 'Failed to update ticket');
+      } else {
+        console.error('Update failed: Unknown error');
+        alert('An unknown error occurred. Please try again.');
+      }
     }
   };
 

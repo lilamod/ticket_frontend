@@ -1,21 +1,24 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  InternalAxiosRequestConfig,
+} from 'axios';
 
-const API_BASE_URL = 'http://localhost:4000/api';  
+const API_BASE_URL = 'http://localhost:4000/api';
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,  
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 api.interceptors.request.use(
-  (config: any) => {
-    const token = localStorage.getItem('tokenoken');  
+  (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem('token');
     if (token) {
-      config.headers = config.headers || {};
-      config.headers['token']= token;
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -28,7 +31,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
@@ -39,9 +42,9 @@ api.interceptors.response.use(
 
 export const setAuthToken = (token: string | null) => {
   if (token) {
-    localStorage.setItem('authToken', token);
+    localStorage.setItem('token', token);
   } else {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
   }
 };
 

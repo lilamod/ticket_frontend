@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import type { AuthState, User, ApiResponse } from '../types';
-import type { RootState } from './index';
+import type { AuthState, User } from '../types';
 
 export const sendOTP = createAsyncThunk<
   { message: string },
@@ -80,8 +79,13 @@ export const loadAuth = createAsyncThunk<
       const data = await response.json();
       return { token, user: data.user };
     } catch (error: unknown) {
-      localStorage.removeItem('token');
-      return rejectWithValue('Failed to load auth');
+      if (error instanceof Error) {
+        console.error('Auth loading failed:', error.message);
+        return rejectWithValue(error.message || 'Failed to load auth');
+      } else {
+        console.error('Auth loading failed: Unknown error');
+        return rejectWithValue('Failed to load auth');
+      }
     }
   }
 );
