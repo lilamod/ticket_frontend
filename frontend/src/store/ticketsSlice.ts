@@ -15,25 +15,39 @@ const initialState: TicketsState = {
   error: null,
 };
 
+// Define raw API ticket shape to avoid 'any'
+interface RawTicket {
+  _id?: string;
+  id?: string;
+  projectId?: string;
+  project?: string;
+  description?: string;
+  status?: string;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
 export const updateTicketInState = createAction<Ticket>('ticket/updateTicketInState');
 
-const transformTicket = (apiTicket: any): Ticket => {
+const transformTicket = (apiTicket: RawTicket): Ticket => {
   if (!apiTicket) return {} as Ticket;
 
   return {
     id: apiTicket._id?.toString() || apiTicket.id || '',
     projectId: apiTicket.projectId?.toString() || apiTicket.project || '',
     description: apiTicket.description || '',
-    status: apiTicket.status as TicketStatus,
-    createdBy: apiTicket.createdBy || undefined,  
+    status: (apiTicket.status as TicketStatus) || TicketStatus.TODO,
+    createdBy: apiTicket.createdBy || undefined,
     updatedBy: apiTicket.updatedBy || undefined,
     createdAt: apiTicket.createdAt ? new Date(apiTicket.createdAt).getTime() : undefined,
     updatedAt: apiTicket.updatedAt ? new Date(apiTicket.updatedAt).getTime() : undefined,
-    type:""
+    type: "",
   };
 };
 
-const transformTickets = (apiTickets: any[]): Ticket[] => apiTickets.map(transformTicket);
+const transformTickets = (apiTickets: RawTicket[]): Ticket[] => apiTickets.map(transformTicket);
 
 interface UpdateTicketPayload {
   id: string;
@@ -48,14 +62,17 @@ export const fetchTicketsByProject = createAsyncThunk<
   'tickets/fetchByProject',
   async (projectId: string, { rejectWithValue }) => {
     try {
-      const response = await api.get<ApiResponse<any[]>>(`/ticket/list?projectId=${projectId}`);
+      const response = await api.get<ApiResponse<RawTicket[]>>(`/ticket/list?projectId=${projectId}`);
       const apiTickets = response.data.data || [];
       const transformed = transformTickets(apiTickets);
       console.log('Fetched tickets for project:', projectId, transformed.length);
       return transformed;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Fetch tickets error:', error);
-      return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to fetch tickets');
+      // Safely access error properties
+      const err = error as Error;
+      const message = err.message || 'Failed to fetch tickets';
+      return rejectWithValue(message);
     }
   }
 );
@@ -72,7 +89,7 @@ export const createTicket = createAsyncThunk<
         return rejectWithValue('Description is required');
       }
       const payload = { projectId, description: description.trim(), status: TicketStatus.TODO };
-      const response = await api.post<ApiResponse<any>>('http://localhost:4000/api/ticket/create', payload);
+      const response = await api.post<ApiResponse<RawTicket>>('/ticket/create', payload);
       const apiTicket = response.data.data;
       const transformed = transformTicket(apiTicket);
       if (!transformed.id) {
@@ -85,9 +102,12 @@ export const createTicket = createAsyncThunk<
       });
       console.log('Ticket created:', transformed.id);
       return transformed;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Create ticket error:', error);
-      return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to create ticket');
+      // Safely access error properties
+      const err = error as Error;
+      const message = err.message || 'Failed to create ticket';
+      return rejectWithValue(message);
     }
   }
 );
@@ -106,8 +126,7 @@ export const updateTicket = createAsyncThunk<
       if (updates.status && !Object.values(TicketStatus).includes(updates.status)) {
         return rejectWithValue(`Invalid status: ${updates.status}`);
       }
-      const response = await api.put<ApiResponse<any>>(`http://localhost:4000/api/ticket/update/${id}`, updates);
-      console.log("calling")
+      const response = await api.put<ApiResponse<RawTicket>>(`/ticket/update/${id}`, updates);
       const apiTicket = response.data.data;
       const transformed = transformTicket(apiTicket);
       if (!transformed.id) {
@@ -123,9 +142,11 @@ export const updateTicket = createAsyncThunk<
       });
       console.log('Ticket updated:', id);
       return transformed;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Update ticket error:', error);
-      return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to update ticket');
+      const err = error as Error;
+      const message = err.message || 'Failed to update ticket';
+      return rejectWithValue(message);
     }
   }
 );
@@ -149,9 +170,11 @@ export const deleteTicket = createAsyncThunk<
       });
       console.log('Ticket deleted:', id);
       return id;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Delete ticket error:', error);
-      return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to delete ticket');
+      const err = error as Error;
+      const message = err.message || 'Failed to delete ticket';
+      return rejectWithValue(message);
     }
   }
 );
@@ -240,4 +263,4 @@ const ticketsSlice = createSlice({
 });
 
 export const { updateTickets, removeTicket, clearError, resetTickets } = ticketsSlice.actions;
-export default ticketsSlice.reducer; 
+export default ticketsSlice.reducer;
