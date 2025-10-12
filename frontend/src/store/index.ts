@@ -1,5 +1,4 @@
 import { configureStore } from '@reduxjs/toolkit';
-import type { AuthState, ProjectsState, TicketsState, NotificationsState, UiState } from '../types'; // Import state shapes
 import authSlice from './authSlice';
 import projectsSlice from './projectsSlice';
 import ticketsSlice from './ticketsSlice';
