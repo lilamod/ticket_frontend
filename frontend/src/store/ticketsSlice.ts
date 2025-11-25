@@ -129,9 +129,7 @@ export const updateTicket = createAsyncThunk<
       const response = await api.put<ApiResponse<RawTicket>>(`/ticket/update/${id}`, updates);
       const apiTicket = response.data.data;
       const transformed = transformTicket(apiTicket);
-      if (!transformed.id) {
-        throw new Error('Updated ticket missing ID');
-      }
+
       emitTicketUpdate({ 
         id, 
         ...updates, 

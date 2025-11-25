@@ -35,7 +35,8 @@ export const verifyOTP = createAsyncThunk<
     const token = verifyResponse.data.data.token;
     localStorage.setItem('token', token);
 
-    const userResponse = await api.get<ApiResponse<{ user: User }>>('/auth/me');
+    const userResponse = await api.post<ApiResponse<{ user: User }>>('/auth/me');
+    console.log(userResponse.data)
     const user = userResponse.data.data.user;
 
     return { token, user };
