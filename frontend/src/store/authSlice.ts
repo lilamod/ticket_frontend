@@ -58,7 +58,7 @@ export const loadAuth = createAsyncThunk<
     const token = localStorage.getItem('token');
     if (!token) return null;
 
-    const response = await api.get<ApiResponse<{ user: User }>>('/auth/me');
+    const response = await api.post<ApiResponse<{ user: User }>>('/auth/me');
     const user = response.data.data.user;
 
     return { token, user };
